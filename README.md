@@ -5,21 +5,21 @@ A simple Python CLI tool to fetch and display Open Play pickleball sessions from
 ## Setup Instructions
 
 1. **Clone or navigate to the project directory**
-   ```bash
-   cd d:\claude\weekend1-pk
+   ```powershell
+   cd d:\claude\FetchPBK
    ```
 
 2. **Set up a Python virtual environment** (recommended)
-   ```bash
-   python -m venv venv
+   ```powershell
+   python -m venv .venv
    # On Windows:
-   venv\Scripts\activate
+   .venv\Scripts\activate
    # On macOS/Linux:
-   # source venv/bin/activate
+   # source .venv/bin/activate
    ```
 
 3. **Install dependencies**
-   ```bash
+   ```powershell
    pip install -r requirements.txt
    ```
 
@@ -27,54 +27,58 @@ A simple Python CLI tool to fetch and display Open Play pickleball sessions from
 
    | Variable | Description | Default |
    |---|---|---|
-   | `PODPLAY_TOKEN` | Bearer token from Pickleball Kingdom | *(required)* |
+   | `PODPLAY_EMAIL` | Your Pickleball Kingdom account email | *(required for auto-auth)* |
+   | `PODPLAY_PASSWORD` | Your Pickleball Kingdom account password | *(required for auto-auth)* |
+   | `PODPLAY_TOKEN` | Cached Bearer token (managed automatically) | *(auto-updated)* |
    | `FILTER_CITY` | Facility city to filter by | `Tinton Falls` |
    | `FILTER_EVENT_NAME` | Event type to filter by | `High Intermediate Open Play (3.5 - 3.99)` |
 
    Example `.env`:
    ```
-   PODPLAY_TOKEN=abc123def456...
+   PODPLAY_EMAIL=you@example.com
+   PODPLAY_PASSWORD=yourpassword
+   PODPLAY_TOKEN=
    FILTER_CITY=Tinton Falls
    FILTER_EVENT_NAME=High Intermediate Open Play (3.5 - 3.99)
    ```
 
 5. **Run the tool**
-   ```bash
+   ```powershell
    python main.py
    ```
 
 ## What it does
 
 - Fetches events from the Pickleball Kingdom API
-- Filters to show only Open Play events
+- Filters to show only Open Play events matching your configured city and event name
 - Sorts events by date (ascending)
-- Displays event name, date/time, and available spots (if provided)
-- Warns if token is missing or invalid
+- Displays event name, date/time, location, and available spots
+
+## Authentication
+
+Bearer tokens issued by Pickleball Kingdom expire after 1 hour. The tool handles this automatically:
+
+1. On each run it checks whether the saved `PODPLAY_TOKEN` is expired by inspecting the JWT locally (no network call)
+2. If expired or missing, it re-authenticates using `PODPLAY_EMAIL` and `PODPLAY_PASSWORD` via Firebase
+3. The new token is written back to `.env` automatically
+4. If credentials are not set in `.env`, the tool will prompt for them interactively
+
+If `PODPLAY_EMAIL` and `PODPLAY_PASSWORD` are set in `.env`, the tool runs fully unattended with no manual token management needed.
 
 ## Requirements
 
 - Python 3.7+
 - Internet connection for API access
-- Valid Bearer token for authentication
 
 ## Troubleshooting
 
-- **"PODPLAY_TOKEN environment variable is not set"**: Make sure your `.env` file has the correct token
-- **"Invalid or expired token (401 Unauthorized)"**: Check your token is valid and hasn't expired
+- **"Authentication failed: INVALID_LOGIN_CREDENTIALS"**: Check `PODPLAY_EMAIL` and `PODPLAY_PASSWORD` in your `.env`
+- **"Token rejected, re-authenticating..."**: The saved token was rejected server-side; the tool will retry automatically using your credentials
 - **No events found**: Verify `FILTER_CITY` and `FILTER_EVENT_NAME` in your `.env` match exactly what appears in the Pickleball Kingdom app
 - **Network errors**: Ensure you have internet access
 
 ## Future Modifications
 
-This tool is designed to be easily extensible. Potential enhancements:
+- Detect newly added sessions and auto-book them on a schedule
 - Add date range filtering
-- Export results to CSV/JSON
-- Add notifications for new events
 - Support multiple clubs/locations
-
-
-## Notes about my future changes
-
-Add ability to log in without having to capture the Environment JWT
-- Podplay uses Firebase
-- https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=AIzaSyAsK04VLy0Jd42PhjJz2n1w1hVJNTYKHmw
