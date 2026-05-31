@@ -52,15 +52,11 @@ def format_event(event: Dict[str, Any]) -> str:
     name = event.get('name', 'Unknown Event')
     start_time = event.get('startTime', 'Unknown Date')
 
+    pods = event.get('pods', {}).get('items', [])
+
     # Format date - convert from UTC to local timezone
-    timezone_str = "UTC"
+    timezone_str = pods[0].get('timezone', 'UTC') if pods else 'UTC'
     try:
-        # Try to get timezone from the pod
-        pods = event.get('pods', {}).get('items', [])
-        if pods:
-            timezone_str = pods[0].get('timezone', 'UTC')
-        
-        # Parse UTC time and convert to local timezone
         dt_utc = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
         tz = pytz.timezone(timezone_str)
         dt_local = dt_utc.astimezone(tz)
@@ -70,10 +66,8 @@ def format_event(event: Dict[str, Any]) -> str:
 
     # Extract location from pods
     location = "Location not available"
-    pods = event.get('pods', {}).get('items', [])
-    if pods and isinstance(pods, list):
-        pod = pods[0]
-        address = pod.get('address', {})
+    if pods:
+        address = pods[0].get('address', {})
         if address:
             location = f"{address.get('street', '')}, {address.get('city', '')} {address.get('zip', '')}"
 

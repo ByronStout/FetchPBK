@@ -65,6 +65,57 @@ Bearer tokens issued by Pickleball Kingdom expire after 1 hour. The tool handles
 
 If `PODPLAY_EMAIL` and `PODPLAY_PASSWORD` are set in `.env`, the tool runs fully unattended with no manual token management needed.
 
+## PodPlayClient API
+
+`PodPlayClient` in `api_client.py` can be used directly in other scripts or tools:
+
+```python
+from api_client import PodPlayClient, APIError
+
+# Create from saved token in environment
+client = PodPlayClient.from_env()
+
+# Or pass a token directly
+client = PodPlayClient(token="your-bearer-token")
+
+# Check token validity before making calls
+if not client.is_authenticated():
+    client.authenticate("you@example.com", "yourpassword")
+
+# Fetch events — all parameters are optional keyword arguments
+events = client.get_events(
+    city="Tinton Falls",                              # filter by facility city
+    event_name="High Intermediate Open Play (3.5 - 3.99)",  # filter by exact event name
+    days=7,                                           # how many days ahead (default: 5)
+)
+
+# Use explicit date range instead of `days`
+from datetime import datetime, timezone, timedelta
+start = datetime(2026, 6, 1, tzinfo=timezone.utc)
+end   = datetime(2026, 6, 7, tzinfo=timezone.utc)
+events = client.get_events(start_date=start, end_date=end)
+```
+
+### Method reference
+
+| Method | Description |
+|---|---|
+| `PodPlayClient(token="")` | Construct with an explicit token |
+| `from_env()` | Classmethod — loads token from `PODPLAY_TOKEN` env var |
+| `is_authenticated()` | Returns `True` if token is present and not expired |
+| `authenticate(email, password)` | Fetches a fresh token via Firebase and saves it to `.env` |
+| `get_events(*, start_date, end_date, days, city, event_name)` | Fetch events; all args optional, see below |
+
+### `get_events()` parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `start_date` | `datetime` | now (UTC) | Start of the date window |
+| `end_date` | `datetime` | `start_date + days` | End of the date window |
+| `days` | `int` | `5` | Days ahead when `end_date` is not set |
+| `city` | `str` | `None` | Filter to events at facilities in this city |
+| `event_name` | `str` | `None` | Filter to events with this exact name |
+
 ## Requirements
 
 - Python 3.7+
@@ -80,5 +131,3 @@ If `PODPLAY_EMAIL` and `PODPLAY_PASSWORD` are set in `.env`, the tool runs fully
 ## Future Modifications
 
 - Detect newly added sessions and auto-book them on a schedule
-- Add date range filtering
-- Support multiple clubs/locations

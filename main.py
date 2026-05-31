@@ -10,20 +10,15 @@ import sys
 import getpass
 from dotenv import load_dotenv
 
-from api_client import get_bearer_token, fetch_events, fetch_new_token, save_token_to_env, is_token_expired, APIError
-from display import filter_open_play_events, sort_events_by_date, display_events, display_error
+from api_client import PodPlayClient, APIError
+from display import sort_events_by_date, display_events, display_error
 
-def _reauthenticate() -> str:
-    """Get fresh credentials (from .env or interactive prompt) and return a new token."""
-    email = os.getenv("PODPLAY_EMAIL", "")
-    password = os.getenv("PODPLAY_PASSWORD", "")
-    if not email:
-        email = input("PBK Email: ")
-    if not password:
-        password = getpass.getpass("PBK Password: ")
-    token = fetch_new_token(email, password)
-    save_token_to_env(token)
-    return token
+
+def _get_credentials() -> tuple[str, str]:
+    email = os.getenv("PODPLAY_EMAIL", "") or input("PBK Email: ")
+    password = os.getenv("PODPLAY_PASSWORD", "") or getpass.getpass("PBK Password: ")
+    return email, password
+
 
 def main():
     load_dotenv()
@@ -32,24 +27,23 @@ def main():
     filter_event_name = os.getenv("FILTER_EVENT_NAME", "High Intermediate Open Play (3.5 - 3.99)")
 
     try:
-        token = get_bearer_token()
+        client = PodPlayClient.from_env()
 
-        if is_token_expired(token):
+        if not client.is_authenticated():
             print("Token expired or missing, re-authenticating...")
-            token = _reauthenticate()
+            client.authenticate(*_get_credentials())
 
         try:
-            events = fetch_events(token)
+            events = client.get_events(city=filter_city, event_name=filter_event_name)
         except APIError as e:
             if "401" in str(e):
                 print("Token rejected, re-authenticating...")
-                token = _reauthenticate()
-                events = fetch_events(token)
+                client.authenticate(*_get_credentials())
+                events = client.get_events(city=filter_city, event_name=filter_event_name)
             else:
                 raise
 
-        open_play_events = filter_open_play_events(events, filter_city, filter_event_name)
-        sorted_events = sort_events_by_date(open_play_events)
+        sorted_events = sort_events_by_date(events)
         display_events(sorted_events)
 
     except APIError as e:
@@ -61,6 +55,7 @@ def main():
     except Exception as e:
         display_error(f"Unexpected error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
